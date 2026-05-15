@@ -3,7 +3,7 @@
 // Description: A machine that generates procedural worlds using Perlin noise and fractals
 
 (() => {
-  const procVersion = "1.0.1";
+  const procVersion = "1.0.3";
 
   // Perlin Noise implementation for smooth terrain generation
   class PerlinNoise {
@@ -79,67 +79,61 @@
     name: "world generator",
     category: "machines",
     color: [80, 120, 200],
-    behavior: behaviors.SOLID,
+    behavior: behaviors.WALL,
     state: "solid",
     density: 500,
     tempHigh: 3000,
     stateHigh: "lava",
     hardness: 0.8,
+    conduct: 0,
     
-    onActivate: function(pixel) {
-      if (!pixel.worldGenActive) {
-        pixel.worldGenActive = true;
-        pixel.seed = Math.floor(Math.random() * 10000);
-        pixel.scale = 100;
-        pixel.octaves = 5;
-      }
-    },
-
     onTick: function(pixel, x, y) {
-      if (!pixel.worldGenActive) return;
+      // Generar solo una vez cuando se coloca
+      if (!pixel.generated) {
+        pixel.generated = true;
+        
+        const radius = 50;
+        const seed = Math.floor(Math.random() * 10000);
+        const octaves = 5;
+        const scale = 100;
 
-      // Generate terrain around the machine
-      const radius = 20;
-      const seed = pixel.seed || 0;
+        // Generar terreno alrededor de la máquina
+        for (let dx = -radius; dx <= radius; dx++) {
+          for (let dy = -radius; dy <= radius; dy++) {
+            const nx = x + dx;
+            const ny = y + dy;
 
-      // Only generate on certain ticks to avoid performance issues
-      if (Math.random() > 0.1) return;
+            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
 
-      for (let dx = -radius; dx <= radius; dx++) {
-        for (let dy = -radius; dy <= radius; dy++) {
-          const nx = x + dx;
-          const ny = y + dy;
+            // Usar FBM para determinar tipo de terreno
+            const noiseValue = fbm(nx, ny, octaves, 0.5, scale, seed);
+            const normalized = (noiseValue + 1) / 2;
 
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-          if (Math.random() > 0.2) continue;
+            // Elegir elemento basado en el valor de ruido
+            let element = null;
+            if (normalized < 0.3) {
+              element = "water";
+            } else if (normalized < 0.5) {
+              element = "sand";
+            } else if (normalized < 0.7) {
+              element = "dirt";
+            } else if (normalized < 0.85) {
+              element = "stone";
+            } else {
+              element = "rock";
+            }
 
-          // Use FBM to determine terrain type
-          const noiseValue = fbm(nx, ny, pixel.octaves || 5, 0.5, pixel.scale || 100, seed);
-          const normalized = (noiseValue + 1) / 2;
-
-          // Choose element based on noise value
-          let element = null;
-          if (normalized < 0.3) {
-            element = "water";
-          } else if (normalized < 0.5) {
-            element = "sand";
-          } else if (normalized < 0.7) {
-            element = "dirt";
-          } else if (normalized < 0.85) {
-            element = "stone";
-          } else {
-            element = "rock";
-          }
-
-          if (element && pixelMap[ny] && pixelMap[ny][nx] === null) {
-            tryPlacePixel(element, nx, ny);
+            // Colocar el elemento si la celda está vacía
+            if (element && pixelMap[ny] && pixelMap[ny][nx] === null) {
+              tryPlacePixel(element, nx, ny);
+            }
           }
         }
       }
     }
   };
 
-  // Register the item in the inventory
+  // Registrar el item en el inventario
   Items.worldGenerator = {
     name: "world generator",
     element: "worldGenerator",
