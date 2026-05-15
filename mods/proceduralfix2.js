@@ -3,7 +3,7 @@
 // Description: A machine that generates procedural worlds using Perlin noise and fractals
 
 (() => {
-  const procVersion = "1.0.0";
+  const procVersion = "1.0.1";
 
   // Perlin Noise implementation for smooth terrain generation
   class PerlinNoise {
@@ -80,6 +80,7 @@
     category: "machines",
     color: [80, 120, 200],
     behavior: behaviors.SOLID,
+    state: "solid",
     density: 500,
     tempHigh: 3000,
     stateHigh: "lava",
@@ -94,14 +95,15 @@
       }
     },
 
-    onProcess: function(pixel) {
+    onTick: function(pixel, x, y) {
       if (!pixel.worldGenActive) return;
 
       // Generate terrain around the machine
-      const x = pixel.x || 0;
-      const y = pixel.y || 0;
-      const radius = 30; // Generation radius
+      const radius = 20;
       const seed = pixel.seed || 0;
+
+      // Only generate on certain ticks to avoid performance issues
+      if (Math.random() > 0.1) return;
 
       for (let dx = -radius; dx <= radius; dx++) {
         for (let dy = -radius; dy <= radius; dy++) {
@@ -109,11 +111,11 @@
           const ny = y + dy;
 
           if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-          if (Math.random() > 0.3) continue; // Don't generate everywhere
+          if (Math.random() > 0.2) continue;
 
           // Use FBM to determine terrain type
           const noiseValue = fbm(nx, ny, pixel.octaves || 5, 0.5, pixel.scale || 100, seed);
-          const normalized = (noiseValue + 1) / 2; // Normalize to 0-1
+          const normalized = (noiseValue + 1) / 2;
 
           // Choose element based on noise value
           let element = null;
@@ -129,36 +131,20 @@
             element = "rock";
           }
 
-          // Place element if pixel is empty
-          if (pixelMap[ny] && pixelMap[ny][nx] === null) {
+          if (element && pixelMap[ny] && pixelMap[ny][nx] === null) {
             tryPlacePixel(element, nx, ny);
           }
         }
       }
-    },
-
-    behavior: [
-      [100, 100, () => {
-        // Allow activation and processing
-      }]
-    ]
+    }
   };
 
   // Register the item in the inventory
   Items.worldGenerator = {
     name: "world generator",
     element: "worldGenerator",
-    category: "machines",
-    color: [80, 120, 200]
+    category: "machines"
   };
 
-  // Add to element list
-  if (!elementLists.machines) {
-    elementLists.machines = [];
-  }
-  elementLists.machines.push(Elements.worldGenerator);
-
   console.log(`[Procedural World Generator v${procVersion}] Loaded successfully!`);
-  console.log("- Features: FBM terrain generation, Perlin noise, configurable parameters");
-  console.log("- Use: Place 'world generator' and activate to generate procedural terrain");
 })();
