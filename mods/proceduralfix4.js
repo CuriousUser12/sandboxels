@@ -1,9 +1,10 @@
-// Procedural World Generator - Creates worlds using mathematical algorithms
+// Procedural World Generator - Auto-generates worlds on game start
 // Author: CuriousUser12
-// Description: A machine that generates procedural worlds using Perlin noise and fractals
+// Description: Automatically generates procedural worlds using Perlin noise and fractals
 
 (() => {
-  const procVersion = "1.0.3";
+  const procVersion = "1.1.0";
+  let worldGenerated = false;
 
   // Perlin Noise implementation for smooth terrain generation
   class PerlinNoise {
@@ -74,71 +75,113 @@
     return value / maxValue;
   }
 
-  // Register the World Generator machine
-  Elements.worldGenerator = {
-    name: "world generator",
-    category: "machines",
-    color: [80, 120, 200],
-    behavior: behaviors.WALL,
-    state: "solid",
-    density: 500,
-    tempHigh: 3000,
-    stateHigh: "lava",
-    hardness: 0.8,
-    conduct: 0,
+  // Function to generate the entire world procedurally
+  function generateProceduralWorld() {
+    if (worldGenerated) return;
     
-    onTick: function(pixel, x, y) {
-      // Generar solo una vez cuando se coloca
-      if (!pixel.generated) {
-        pixel.generated = true;
-        
-        const radius = 50;
-        const seed = Math.floor(Math.random() * 10000);
-        const octaves = 5;
-        const scale = 100;
+    console.log(`[Procedural World Generator v${procVersion}] Starting world generation...`);
+    
+    try {
+      const seed = Math.floor(Math.random() * 100000);
+      const octaves = 4;
+      const scale = 80;
+      const persistence = 0.55;
 
-        // Generar terreno alrededor de la máquina
-        for (let dx = -radius; dx <= radius; dx++) {
-          for (let dy = -radius; dy <= radius; dy++) {
-            const nx = x + dx;
-            const ny = y + dy;
+      // Check if we have access to game variables
+      if (typeof pixelMap === 'undefined' || typeof width === 'undefined' || typeof height === 'undefined') {
+        console.warn('[Procedural World Generator] Game variables not ready, retrying...');
+        setTimeout(generateProceduralWorld, 500);
+        return;
+      }
 
-            if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      console.log(`[Procedural World Generator] Generating world: ${width}x${height} with seed ${seed}`);
 
-            // Usar FBM para determinar tipo de terreno
-            const noiseValue = fbm(nx, ny, octaves, 0.5, scale, seed);
-            const normalized = (noiseValue + 1) / 2;
+      // Generate terrain across entire world
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          // Skip if cell already has content
+          if (pixelMap[y] && pixelMap[y][x] !== null) {
+            continue;
+          }
 
-            // Elegir elemento basado en el valor de ruido
-            let element = null;
-            if (normalized < 0.3) {
-              element = "water";
-            } else if (normalized < 0.5) {
-              element = "sand";
-            } else if (normalized < 0.7) {
-              element = "dirt";
-            } else if (normalized < 0.85) {
-              element = "stone";
-            } else {
-              element = "rock";
-            }
+          // Calculate noise value
+          const noiseValue = fbm(x, y, octaves, persistence, scale, seed);
+          const normalized = (noiseValue + 1) / 2;
 
-            // Colocar el elemento si la celda está vacía
-            if (element && pixelMap[ny] && pixelMap[ny][nx] === null) {
-              tryPlacePixel(element, nx, ny);
+          let element = null;
+
+          // Assign elements based on noise (with layers)
+          if (normalized < 0.2) {
+            element = "water";
+          } else if (normalized < 0.35) {
+            element = "sand";
+          } else if (normalized < 0.5) {
+            element = "dirt";
+          } else if (normalized < 0.65) {
+            element = "grass";
+          } else if (normalized < 0.75) {
+            element = "stone";
+          } else if (normalized < 0.88) {
+            element = "rock";
+          } else {
+            element = "obsidian";
+          }
+
+          // Place pixel if valid
+          if (element && pixelMap[y]) {
+            try {
+              tryPlacePixel(element, x, y);
+            } catch (e) {
+              // Silently skip if element doesn't exist
             }
           }
         }
-      }
-    }
-  };
 
-  // Registrar el item en el inventario
-  Items.worldGenerator = {
-    name: "world generator",
-    element: "worldGenerator",
-    category: "machines"
-  };
+        // Log progress every 10% of height
+        if (y % Math.floor(height / 10) === 0) {
+          console.log(`[Procedural World Generator] Progress: ${Math.floor(y / height * 100)}%`);
+        }
+      }
+
+      worldGenerated = true;
+      console.log(`[Procedural World Generator v${procVersion}] World generation complete!`);
+    } catch (error) {
+      console.error('[Procedural World Generator] Error during generation:', error);
+    }
+  }
+
+  // Hook into game initialization
+  const originalUpdatePixels = (typeof updatePixels !== 'undefined') ? updatePixels : null;
+
+  // Try multiple methods to hook into the game loop
+  if (typeof onLoad !== 'undefined') {
+    // If game provides onLoad hook
+    const originalOnLoad = onLoad || (() => {});
+    window.onLoad = function() {
+      if (typeof originalOnLoad === 'function') originalOnLoad();
+      setTimeout(generateProceduralWorld, 100);
+    };
+  }
+
+  // Alternative: Hook into update loop with a one-time check
+  if (typeof updatePixels !== 'undefined') {
+    window.updatePixels = function() {
+      if (!worldGenerated) {
+        generateProceduralWorld();
+      }
+      if (originalUpdatePixels) {
+        return originalUpdatePixels.apply(this, arguments);
+      }
+    };
+  }
+
+  // Fallback: Generate after a delay (for slower loading)
+  setTimeout(() => {
+    if (!worldGenerated) {
+      console.log('[Procedural World Generator] Using fallback initialization...');
+      generateProceduralWorld();
+    }
+  }, 1000);
 
   console.log(`[Procedural World Generator v${procVersion}] Loaded successfully!`);
 })();
