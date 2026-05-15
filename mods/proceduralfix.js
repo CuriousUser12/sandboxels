@@ -144,6 +144,14 @@
     ]
   };
 
+  // Register the item in the inventory
+  Items.worldGenerator = {
+    name: "world generator",
+    element: "worldGenerator",
+    category: "machines",
+    color: [80, 120, 200]
+  };
+
   // Add to element list
   if (!elementLists.machines) {
     elementLists.machines = [];
