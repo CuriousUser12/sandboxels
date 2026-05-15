@@ -10,17 +10,15 @@ elements.world_generator = {
     desc: "A machine that procedurally generates a small world.",
 
     tick: function(pixel) {
-        // Prevent generating forever every tick
         if (pixel.generated) { return; }
 
         pixel.generated = true;
 
-        var width = 90;      // world width
-        var height = 55;     // underground depth
+        var width = 90;
+        var height = 55;
         var startX = pixel.x - Math.floor(width / 2);
         var baseY = pixel.y + 4;
 
-        // Simple random seed
         var seed = Math.random() * 10000;
 
         function noise(x) {
@@ -37,18 +35,16 @@ elements.world_generator = {
                     continue;
                 }
 
-                // Do not replace the machine
                 if (x === pixel.x && y === pixel.y) {
                     continue;
                 }
 
-                // Only generate in empty space
                 if (!isEmpty(x, y, true)) {
                     continue;
                 }
 
                 var depth = y - surface;
-                var elem = "stone";
+                var elem = "rock";
 
                 // Terrain layers
                 if (depth === 0) {
@@ -58,10 +54,10 @@ elements.world_generator = {
                     elem = "dirt";
                 }
                 else if (depth < 20) {
-                    elem = Math.random() < 0.25 ? "gravel" : "stone";
+                    elem = Math.random() < 0.25 ? "gravel" : "rock";
                 }
                 else {
-                    elem = "basalt";
+                    elem = "rock";
                 }
 
                 // Caves
@@ -73,9 +69,9 @@ elements.world_generator = {
                     continue;
                 }
 
-                // Ores
+                // Ores / underground materials
                 if (depth > 10 && Math.random() < 0.015) {
-                    elem = "coal";
+                    elem = "carbon";
                 }
 
                 if (depth > 18 && Math.random() < 0.01) {
@@ -111,7 +107,6 @@ elements.world_generator = {
             }
         }
 
-        // Visual sign that the machine finished generating
         pixel.color = "#00aa66";
     }
 };
@@ -121,7 +116,6 @@ function generateTree(x, y) {
         return;
     }
 
-    // Check vertical space
     for (var i = 0; i < 5; i++) {
         if (!isEmpty(x, y - i, true)) {
             return;
